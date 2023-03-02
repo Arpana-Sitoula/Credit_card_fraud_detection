@@ -37,3 +37,8 @@ def genetic_algorithm(population_size, chromosome_size, generations):
     
     # Return the best solution
     return max(population, key=fitness_function)
+
+#To use the genetic algorithm, simply call the genetic_algorithm() function with the desired population size, chromosome size, and number of generations
+solution = genetic_algorithm(population_size=100, chromosome_size=10, generations=100)
+print(solution)
+
