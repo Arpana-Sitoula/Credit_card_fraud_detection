@@ -17,12 +17,11 @@ from imblearn.under_sampling import RandomUnderSampler
 rus=RandomUnderSampler(sampling_strategy=1)
 x_res,y_res=rus.fit_resample(X,Y)
 
-
-
 scalar = StandardScaler()
 scalar.fit(x_res)
 standardized_data = scalar.transform(x_res)
 x_res= standardized_data
+
 # y_res= fraud_dataset["Class"]
 X_train, X_test, Y_train, Y_test = train_test_split(
     x_res, y_res, test_size=0.2, random_state=2)
