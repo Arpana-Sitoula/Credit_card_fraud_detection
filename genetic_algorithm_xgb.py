@@ -8,7 +8,7 @@ import pandas as pd
 from xgboost import XGBClassifier
 import random
 from sklearn.metrics import f1_score
-from sklearn.datasets import make_classification
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 
 
@@ -169,19 +169,17 @@ def mutation(crossover, numberOfParameters):
 # Implementing the GA 
 
 # Dataset
-# X, y = make_classification(
-#     n_samples=100000, # 1000 observations 
-#     n_features=150, # 5 total features
-#     n_informative=3, # 3 'useful' features
-#     n_classes=2, # binary target/label 
-#     random_state=999 # if you want the same results as mine
-# )
+#Getting the datasets
 DataFrame = pd.read_csv(r'C:/Users/abi3c/Desktop/creditcard.csv')
+DataFrame.drop_duplicates(inplace=True)
 
-X = DataFrame.drop(columns="Class", axis=1)
-y = DataFrame["Class"]
-
-#X = pd.DataFrame(X)
+#balancing the datasets
+non_fraud = DataFrame[DataFrame['Class']==0]
+fraud = DataFrame[DataFrame['Class']==1]
+legit = non_fraud.sample(n=508)
+NewDataFrame = pd.concat([legit,fraud], axis = 0)
+X = NewDataFrame.drop(columns="Class", axis=1)
+y = NewDataFrame["Class"]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
 
