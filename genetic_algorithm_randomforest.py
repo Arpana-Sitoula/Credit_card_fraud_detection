@@ -5,7 +5,7 @@
 # ----------------------- Importing libraries -----------------------
 import numpy as np
 import pandas as pd
-from xgboost import XGBClassifier
+from sklearn.ensemble import RandomForestClassifier
 import random
 from sklearn.metrics import f1_score
 from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
@@ -15,36 +15,23 @@ from sklearn.model_selection import train_test_split
 # Initialization
 
 def initilialize_poplulation(numberOfParents):
-    '''
-    Initialization: 
-    The parameters are randomly initialized to create the population. 
-    It is the first generation of the population. 
-    We generate a vector containing the hyperparameters. 
-    We have selected 7 hyperparameters to optimze: 
-    - learning rate
-    - n_estimators
-    - min_child_wight 
-    - subsample
-    - colsample_bytree
-    - gamma
-    '''
-    learningRate = np.empty([numberOfParents, 1])
+    maxDepth = np.empty([numberOfParents, 1]) 
     nEstimators = np.empty([numberOfParents, 1])
-    maxDepth = np.empty([numberOfParents, 1])
-    minChildWeight = np.empty([numberOfParents, 1])
-    gammaValue = np.empty([numberOfParents, 1])
-    subSample = np.empty([numberOfParents, 1])
-    colSampleByTree =  np.empty([numberOfParents, 1])
+    minSamplesSplit = np.empty([numberOfParents,1])
+    minSamplesLeaf = np.empty([numberOfParents, 1])
+    maxFeatures = np.empty([numberOfParents, 1])
+    bootStrap = np.empty([numberOfParents, 1])
+    minImpurityDesc =  np.empty([numberOfParents, 1])
     for i in range(numberOfParents):
         print(i)
-        learningRate[i] = round(random.uniform(0.01, 1), 2)
-        nEstimators[i] = random.randrange(10, 150, step = 25)
         maxDepth[i] = int(random.randrange(1, 10, step= 1))
-        minChildWeight[i] = round(random.uniform(0.01, 10.0), 2)
-        gammaValue[i] = round(random.uniform(0.01, 10.0), 2)
-        subSample[i] = round(random.uniform(0.01, 1.0), 2)
-        colSampleByTree[i] = round(random.uniform(0.01, 1.0), 2)
-    population = np.concatenate((learningRate, nEstimators, maxDepth, minChildWeight, gammaValue, subSample, colSampleByTree), axis= 1)
+        nEstimators[i] = random.randrange(10, 150, step = 25)
+        minSamplesSplit[i] = round(random.uniform(0.01, 1.0), 2)
+        minSamplesLeaf[i] = round(random.uniform(0.01, 10.0), 2)
+        maxFeatures[i] = int(random.randrange(1, 10, step= 2))
+        bootStrap[i] = bool(random.choice([True, False]))
+        minImpurityDesc[i] = round(random.uniform(0.01, 1.0), 2)
+    population = np.concatenate((maxDepth,nEstimators, minSamplesSplit, minSamplesLeaf, maxFeatures, bootStrap, minImpurityDesc), axis= 1)
     return population
 
 
@@ -72,17 +59,18 @@ def precision_function(y_true, y_pred):
 def train_population(population, X_train, y_train, X_test, y_test):
     fitness_score = []
     for i in range(population.shape[0]):
-        param = { 'objective':'binary:logistic',
-                'learning_rate': population[i][0],
+        param = { 
+                'criterion': 'gini',
+                'max_depth': int(population[i][0]),
                 'n_estimators': int(population[i][1]), 
-                'max_depth': int(population[i][2]), 
-                'min_child_weight': population[i][3],
-                'gamma': population[i][4], 
-                'subsample': population[i][5],
-                'colsample_bytree': population[i][6],
-                'seed': 24}
-        XGBC = XGBClassifier(n_jobs = 4,random_state = 123).set_params(**param)
-        model = XGBC.fit(X_train, y_train)
+                'min_samples_split': population[i][2], 
+                'min_samples_leaf': population[i][3],
+                'max_features': int(population[i][4]), 
+                'bootstrap': bool(population[i][5]),
+                'min_impurity_decrease': population[i][6],
+                }
+        rfc = RandomForestClassifier(random_state = 123).set_params(**param)
+        model = rfc.fit(X_train, y_train)
         preds = model.predict(X_test)
         # preds = preds>0.5
         fitness_score.append(fitness_function(y_test, preds))
@@ -140,31 +128,31 @@ def crossover_uniform(parents, childrenSize):
 def mutation(crossover, numberOfParameters):
     #Define minimum and maximum values allowed for each parameter
     minMaxValue = np.zeros((numberOfParameters, 2))
-    minMaxValue[0:] = [0.01, 1.0] #min/max learning rate
-    minMaxValue[1, :] = [10, 2000] #min/max n_estimator
-    minMaxValue[2, :] = [1, 15] #min/max depth
-    minMaxValue[3, :] = [0, 10.0] #min/max child_weight
-    minMaxValue[4, :] = [0.01, 10.0] #min/max gamma
-    minMaxValue[5, :] = [0.01, 1.0] #min/maxsubsample
-    minMaxValue[6, :] = [0.01, 1.0] #min/maxcolsample_bytree
+    minMaxValue[0:] = [1, 10] #min/max depth
+    minMaxValue[1, :] = [10, 1000] #min/max n_estimator
+    minMaxValue[2, :] = [0.01, 1.0] #min/max sample split
+    minMaxValue[3, :] = [0.01, 10.0] #min/max sample leaf
+    minMaxValue[4, :] = [1, 10] #min/max features
+    minMaxValue[5, :] = [False, True] #min/maxsubsample
+    minMaxValue[6, :] = [0.01, 1.0] #min/max min impurity desc
     # Mutation changes a single gene in each offspring randomly.
     mutationValue = 0
     parameterSelect = np.random.randint(0, 7, 1)
     print(parameterSelect)
-    if parameterSelect == 0: #learning_rate
-        mutationValue = round(np.random.uniform(-0.5, 0.5), 2)
+    if parameterSelect == 0: #max depth
+        mutationValue = np.random.randint(-5, 5, 1)
     if parameterSelect == 1: #n_estimators
         mutationValue = np.random.randint(-200, 200, 1)
-    if parameterSelect == 2: #max_depth
-        mutationValue = np.random.randint(-5, 5, 1)
-    if parameterSelect == 3: #min_child_weight
+    if parameterSelect == 2: #min sample split
         mutationValue = round(np.random.uniform(5, 5), 2)
-    if parameterSelect == 4: #gamma
-        mutationValue = round(np.random.uniform(-2, 2), 2)
-    if parameterSelect == 5: #subsample
-        mutationValue = round(np.random.uniform(-0.5, 0.5), 2)
-    if parameterSelect == 6: #colsample
-        mutationValue = round(np.random.uniform(-0.5, 0.5), 2)
+    if parameterSelect == 3: #min sample leaf
+        mutationValue = round(np.random.uniform(5, 5), 2)
+    if parameterSelect == 4: #max features
+        mutationValue = np.random.randint(-2, 2 , 2)
+    if parameterSelect == 5: #bootstrap
+        mutationValue = bool(random.choice([True, False]))
+    if parameterSelect == 6: #min impure desc
+        mutationValue = round(np.random.uniform(5, 5), 2)
     #indtroduce mutation by changing one parameter, and set to max or min if it goes out of range
     for idx in range(crossover.shape[0]):
         crossover[idx, parameterSelect] = crossover[idx, parameterSelect] + mutationValue
