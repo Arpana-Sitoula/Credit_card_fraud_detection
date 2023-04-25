@@ -3,14 +3,15 @@
 ###############################################################################
 
 # ----------------------- Importing libraries -----------------------
+from tkinter import filedialog
 import numpy as np
 import pandas as pd
+from sklearn.discriminant_analysis import StandardScaler
 from xgboost import XGBClassifier
 import random
 from sklearn.metrics import f1_score
-from sklearn.metrics import confusion_matrix, accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
-
+from tkinter import *
 
 # Initialization
 
@@ -55,15 +56,6 @@ def fitness_function(y_true, y_pred):
       You can chose Accuracy as the fitness function or whatever metrics that 
       you would like to minimize
     '''
-    fitness = round((f1_score(y_true, y_pred, average='weighted')), 4)
-    return fitness
-
-## we can also use others evaluation metrics like accuracy, precision or recall 
-def accuracy_function(y_true, y_pred):
-    accuracy = round((accuracy_score(y_true, y_pred, average='weighted')),4)
-    return accuracy
-
-def precision_function(y_true, y_pred):
     fitness = round((f1_score(y_true, y_pred, average='weighted')), 4)
     return fitness
 
@@ -179,7 +171,7 @@ def mutation(crossover, numberOfParameters):
 
 # Dataset
 #Getting the datasets
-DataFrame = pd.read_csv(r'C:/Users/abi3c/Desktop/creditcard.csv')
+DataFrame = pd.read_csv(r"creditcard2.csv")
 DataFrame.drop_duplicates(inplace=True)
 
 #balancing the datasets
@@ -190,13 +182,22 @@ NewDataFrame = pd.concat([legit,fraud], axis = 0)
 X = NewDataFrame.drop(columns="Class", axis=1)
 y = NewDataFrame["Class"]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+from imblearn.under_sampling import RandomUnderSampler
+rus=RandomUnderSampler(sampling_strategy=1)
+x_res,y_res=rus.fit_resample(X,y)
+
+scalar = StandardScaler()
+scalar.fit(x_res)
+standardized_data = scalar.transform(x_res)
+x_res= standardized_data
+
+X_train, X_test, y_train, y_test = train_test_split(x_res, y_res, test_size=0.2, random_state=42)
 
 
-numberOfParents = 8 #number of parents to start
-numberOfParentsMating = 4 #number of parents that will mate
+numberOfParents = 15 #number of parents to start
+numberOfParentsMating = 7 #number of parents that will mate
 numberOfParameters = 7 #number of parameters that will be optimized
-numberOfGenerations = 4 #number of genration that will be created
+numberOfGenerations = 6 #number of genration that will be created
 
 #define the population size
 populationSize = (numberOfParents, numberOfParameters)
@@ -239,14 +240,54 @@ fitness = train_population(population, X_train, y_train, X_test, y_test)
 fitnessHistory[generation+1, :] = fitness
 #index of the best solution
 bestFitnessIndex = np.where(fitness == np.max(fitness))[0][0]
-#Best fitness
-print("Best fitness is =", fitness[bestFitnessIndex])
-#Best parameters
-print("Best parameters are:")
-print('learning_rate', population[bestFitnessIndex][0])
-print('n_estimators', population[bestFitnessIndex][1])
-print('max_depth', int(population[bestFitnessIndex][2])) 
-print('min_child_weight', population[bestFitnessIndex][3])
-print('gamma', population[bestFitnessIndex][4])
-print('subsample', population[bestFitnessIndex][5])
-print('colsample_bytree', population[bestFitnessIndex][6])
+
+paramvalue = {
+        'fitness_value':fitness[bestFitnessIndex],
+        'learning_rate': population[bestFitnessIndex][0],
+        'n_estimators': population[bestFitnessIndex][1], 
+        'max_depth': int(population[bestFitnessIndex][2]), 
+        'min_child_weight': population[bestFitnessIndex][3],
+        'gamma': population[bestFitnessIndex][4], 
+        'subsample': population[bestFitnessIndex][5],
+        'colsample_bytree': population[bestFitnessIndex][6],
+        
+        }
+# 'objective':'binary:logistic',
+# 'seed': 24
+
+
+# def genetic_algorithm_UserInterface(display,title):
+#     Title_Algo= Label(display, text=title,font=("Times New Roman",16,"bold"))
+#     best_fitness_f1_score = Label(display, text="Best_Fitness(F1-Score):", font=("Arial", 12))
+#     Best_parameter=Label(display,text="Best_parameter_are: ",font=("Arial", 12))
+#     learning_rate = Label(display, text="Learning_rate:", font=("Arial", 12))
+#     n_estimators = Label(display, text="N_estimators:", font=("Arial", 12))
+#     max_depth = Label(display, text="Max_depth:", font=("Arial", 12))
+#     min_child_weight = Label(display, text="Min_child_weight:", font=("Arial", 12))
+#     gamma = Label(display, text="Gamma:", font=("Arial", 12))
+#     subsample = Label(display, text="Subsample:", font=("Arial", 12))
+#     colsample_bytree = Label(display, text="Colsample_bytree:", font=("Arial", 12))
+#     Title_Algo.pack(pady=5)
+#     best_fitness_f1_score.pack(pady=2)
+#     Best_parameter.pack(pady=2)
+#     learning_rate.pack(pady=2)
+#     n_estimators.pack(pady=2)
+#     max_depth.pack(pady=2)
+#     min_child_weight.pack(pady=2)
+#     gamma.pack(pady=2)
+#     subsample.pack(pady=2)
+#     colsample_bytree.pack(pady=2)
+
+   
+
+
+#     best_fitness_f1_score.config(text=f"Best_Fitness(F1-Score): {fitness[bestFitnessIndex]*100:.2f}%")
+#     learning_rate.config(text=f"Learning_rate: {population[bestFitnessIndex][1]/1000:.2f}")
+#     n_estimators.config(text=f"N_estimators: {population[bestFitnessIndex][1]:.2f}")
+#     max_depth.config(text=f"Max_depth: {int(population[bestFitnessIndex][2]):.2f}")
+#     min_child_weight.config(text=f"Min_child_weight: {population[bestFitnessIndex][3]:.2f}")
+#     gamma.config(text=f"Gamma: {population[bestFitnessIndex][4]:.2f}")
+#     subsample.config(text=f"Subsample: {population[bestFitnessIndex][5]:.2f}")
+#     colsample_bytree.config(text=f"Colsample_bytreee: {population[bestFitnessIndex][6]:.2f}")
+    
+
